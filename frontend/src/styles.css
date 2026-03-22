@@ -1,0 +1,101 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f5f7fb;
+}
+
+.container {
+  max-width: 900px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+input,
+select,
+button {
+  padding: 10px;
+}
+
+.error {
+  color: #bf1e2e;
+}
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.admin-sidebar {
+  gap: 10px;
+}
+
+.active-menu-btn {
+  font-weight: 700;
+}
+
+.admin-car-form {
+  display: grid;
+  gap: 0;
+  padding: 0;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  border-bottom: 1px solid #ddd;
+}
+
+.form-row label {
+  padding: 10px;
+  border-right: 1px solid #ddd;
+  background: #fafafa;
+}
+
+.form-row input,
+.form-row select {
+  border: 0;
+  border-radius: 0;
+}
+
+.checkbox-row input {
+  width: 22px;
+  height: 22px;
+  margin: auto 10px;
+}
+
+.save-btn {
+  width: 120px;
+  margin: 12px;
+}
+
+@media (max-width: 900px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row label {
+    border-right: 0;
+    border-bottom: 1px solid #eee;
+  }
+}
