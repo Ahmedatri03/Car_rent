@@ -1,16 +1,38 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { bankApi } from "../services/api";
+import { useNavigate } from "react-router-dom";
 
 function BankDashboard() {
-  const [form, setForm] = useState({ userId: 1, ownerName: "Client Demo", balance: 1000 });
+  const navigate = useNavigate();
+  const sessionUsername = localStorage.getItem("bank_username") || "";
+  const sessionUserId = Number(localStorage.getItem("bank_userId") || 0);
+
+  const [balance, setBalance] = useState(1000);
   const [account, setAccount] = useState(null);
   const [message, setMessage] = useState("");
+
+  const getMessageVariant = (msg) => {
+    const m = (msg || "").toLowerCase();
+    if (m.includes("erreur")) return "message-error";
+    if (m.includes("aucun")) return "message-warning";
+    return "message-success";
+  };
+
+  const logout = () => {
+    localStorage.removeItem("bank_username");
+    localStorage.removeItem("bank_userId");
+    navigate("/");
+  };
 
   const createAccount = async (e) => {
     e.preventDefault();
     setMessage("");
     try {
-      const res = await bankApi.post("/accounts", form);
+      const res = await bankApi.post("/accounts", {
+        userId: sessionUserId,
+        ownerName: sessionUsername,
+        balance: Number(balance)
+      });
       setAccount(res.data);
       setMessage("Compte cree avec succes.");
     } catch (error) {
@@ -18,15 +40,15 @@ function BankDashboard() {
     }
   };
 
-  const loadByUserId = async () => {
+  const loadAccount = async () => {
     setMessage("");
     try {
-      const res = await bankApi.get(`/accounts/user/${form.userId}`);
+      const res = await bankApi.get(`/accounts/user/${sessionUserId}`);
       setAccount(res.data);
       setMessage("Compte charge.");
     } catch (error) {
       setAccount(null);
-      setMessage("Aucun compte trouve pour ce userId.");
+      setMessage("Aucun compte trouve pour ce username.");
     }
   };
 
@@ -40,72 +62,92 @@ function BankDashboard() {
       const payload = {
         userId: account.userId,
         ownerName: account.ownerName,
-        balance: Number(form.balance)
+        balance: Number(balance)
       };
       const res = await bankApi.put(`/accounts/${account.id}`, payload);
       setAccount(res.data);
-      setForm((prev) => ({ ...prev, balance: res.data.balance, ownerName: res.data.ownerName }));
+      setBalance(res.data.balance);
       setMessage("Solde mis a jour.");
     } catch (error) {
       setMessage("Erreur lors de la mise a jour.");
     }
   };
 
+  useEffect(() => {
+    if (!sessionUserId) {
+      logout();
+      return;
+    }
+    loadAccount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <div className="container">
-      <h2>Bank Dashboard (Client)</h2>
-      <p>Interface bancaire independante de l'application Car Rent.</p>
+    <div className="app-shell">
+      <aside className="app-sidebar">
+        <div className="sidebar-brand">
+          <h2>Bank App</h2>
+          <p>Client</p>
+        </div>
 
-      <form onSubmit={createAccount} className="card">
-        <h3>Creer un compte bancaire</h3>
-        <label>
-          ID client (userId)
-          <input
-            type="number"
-            min="1"
-            step="1"
-            value={form.userId}
-            onChange={(e) => setForm({ ...form, userId: Number(e.target.value) })}
-            placeholder="Ex: 1"
-          />
-        </label>
-        <label>
-          Nom du proprietaire
-          <input
-            value={form.ownerName}
-            onChange={(e) => setForm({ ...form, ownerName: e.target.value })}
-            placeholder="Ex: Client Demo"
-          />
-        </label>
-        <label>
-          Solde (€)
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={form.balance}
-            onChange={(e) => setForm({ ...form, balance: Number(e.target.value) })}
-            placeholder="Ex: 1000"
-          />
-        </label>
-        <button type="submit">Creer compte</button>
-      </form>
+        <div className="sidebar-nav">
+          <div className="nav-btn active" style={{ cursor: "default" }}>
+            Compte
+          </div>
+        </div>
 
-      <div className="card">
-        <h3>Consulter / Mettre a jour</h3>
-        <button onClick={loadByUserId} type="button">
-          Charger mon compte (par userId)
+        <div className="sidebar-spacer" />
+
+        <button className="btn-secondary nav-btn" onClick={logout} type="button">
+          Déconnexion
         </button>
-        <button onClick={updateBalance} type="button">
-          Mettre a jour le solde
-        </button>
-        {account ? (
-          <p>
-            Compte #{account.id} | user {account.userId} | {account.ownerName} | solde: {account.balance}
-          </p>
-        ) : null}
-        {message ? <p>{message}</p> : null}
-      </div>
+      </aside>
+
+      <main className="app-main">
+        <div className="topbar">
+          <h2>Bank Dashboard</h2>
+          <div style={{ color: "var(--muted)", fontWeight: 900 }}>
+            Connecte : <span style={{ color: "var(--text)" }}>{sessionUsername}</span>
+          </div>
+        </div>
+
+        <div className="content-stack">
+          <div className="card">
+            <h3>Compte</h3>
+            {account ? (
+              <p>
+                Compte #{account.id} | {account.ownerName} | solde: {account.balance}
+              </p>
+            ) : (
+              <p>Aucun compte pour ce username.</p>
+            )}
+          </div>
+
+          <form onSubmit={createAccount} className="card">
+            <h3>Créer un compte bancaire</h3>
+            <label>
+              Solde (€)
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={balance}
+                onChange={(e) => setBalance(Number(e.target.value))}
+                placeholder="Ex: 1000"
+              />
+            </label>
+            <button type="submit">Créer un compte</button>
+          </form>
+
+          <div className="card">
+            <h3>Mettre à jour</h3>
+            <button disabled={!account} onClick={updateBalance} type="button">
+              Mettre à jour le solde
+            </button>
+            {message ? <p className={`message ${getMessageVariant(message)}`}>{message}</p> : null}
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
