@@ -1,62 +1,63 @@
 package com.carrent.bankservice.service;
 
 import com.carrent.bankservice.model.BankAccount;
+import com.carrent.bankservice.repository.BankAccountRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class BankAccountService {
-    private final Map<Long, BankAccount> accounts = new ConcurrentHashMap<>();
-    private final AtomicLong sequence = new AtomicLong(1);
+    private final BankAccountRepository bankAccountRepository;
+
+    public BankAccountService(BankAccountRepository bankAccountRepository) {
+        this.bankAccountRepository = bankAccountRepository;
+    }
 
     public BankAccount create(BankAccount account) {
-        long id = sequence.getAndIncrement();
-        account.setId(id);
-        accounts.put(id, account);
-        return account;
+        return bankAccountRepository.save(account);
     }
 
     public List<BankAccount> findAll() {
-        return new ArrayList<>(accounts.values());
+        return bankAccountRepository.findAll();
     }
 
     public BankAccount findById(Long id) {
-        return accounts.get(id);
+        return bankAccountRepository.findById(id).orElse(null);
     }
 
     public BankAccount findByUserId(Long userId) {
-        return accounts.values().stream()
-                .filter(a -> a.getUserId().equals(userId))
-                .findFirst()
-                .orElse(null);
+        return bankAccountRepository.findByUserId(userId).orElse(null);
     }
 
     public BankAccount update(Long id, BankAccount updated) {
-        BankAccount existing = accounts.get(id);
+        BankAccount existing = findById(id);
         if (existing == null) {
             return null;
         }
         existing.setUserId(updated.getUserId());
         existing.setOwnerName(updated.getOwnerName());
         existing.setBalance(updated.getBalance());
-        return existing;
+        return bankAccountRepository.save(existing);
     }
 
     public boolean delete(Long id) {
-        return accounts.remove(id) != null;
+        if (!bankAccountRepository.existsById(id)) {
+            return false;
+        }
+        bankAccountRepository.deleteById(id);
+        return true;
     }
 
+    @Transactional
     public boolean debit(Long userId, Double amount) {
         BankAccount account = findByUserId(userId);
         if (account == null || account.getBalance() < amount) {
             return false;
         }
         account.setBalance(account.getBalance() - amount);
+        bankAccountRepository.save(account);
         return true;
     }
 }

@@ -1,45 +1,40 @@
 package com.carrent.carservice.service;
 
 import com.carrent.carservice.model.Car;
+import com.carrent.carservice.repository.CarRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class CarService {
-    private final Map<Long, Car> cars = new ConcurrentHashMap<>();
-    private final AtomicLong sequence = new AtomicLong(1);
+    private final CarRepository carRepository;
+
+    public CarService(CarRepository carRepository) {
+        this.carRepository = carRepository;
+    }
 
     public Car create(Car car) {
-        long id = sequence.getAndIncrement();
-        car.setId(id);
         if (car.getRentalPricePerDay() == null && car.getPricePerDay() != null) {
             car.setRentalPricePerDay(car.getPricePerDay());
         }
         if (car.getPricePerDay() == null && car.getRentalPricePerDay() != null) {
             car.setPricePerDay(car.getRentalPricePerDay());
         }
-        if (!car.isAvailable()) {
-            car.setAvailable(true);
-        }
-        cars.put(id, car);
-        return car;
+        car.setAvailable(true);
+        return carRepository.save(car);
     }
 
     public List<Car> findAll() {
-        return new ArrayList<>(cars.values());
+        return carRepository.findAll();
     }
 
     public Car findById(Long id) {
-        return cars.get(id);
+        return carRepository.findById(id).orElse(null);
     }
 
     public Car update(Long id, Car updated) {
-        Car existing = cars.get(id);
+        Car existing = findById(id);
         if (existing == null) {
             return null;
         }
@@ -61,17 +56,39 @@ public class CarService {
             existing.setRentalPricePerDay(existing.getPricePerDay());
         }
         existing.setAvailable(updated.isAvailable());
-        return existing;
+        return carRepository.save(existing);
     }
 
     public boolean delete(Long id) {
-        return cars.remove(id) != null;
+        if (!carRepository.existsById(id)) {
+            return false;
+        }
+        carRepository.deleteById(id);
+        return true;
     }
 
     public void setAvailability(Long id, boolean available) {
-        Car car = cars.get(id);
+        Car car = findById(id);
         if (car != null) {
             car.setAvailable(available);
+            carRepository.save(car);
         }
+    }
+
+    /**
+     * Met à jour la disponibilité de toutes les voitures.
+     * Retourne le nombre de voitures réellement modifiées.
+     */
+    public int setAllAvailability(boolean available) {
+        int updated = 0;
+        List<Car> allCars = carRepository.findAll();
+        for (Car car : allCars) {
+            if (car.isAvailable() != available) {
+                car.setAvailable(available);
+                updated++;
+            }
+        }
+        carRepository.saveAll(allCars);
+        return updated;
     }
 }

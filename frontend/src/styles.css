@@ -290,7 +290,7 @@ button:focus-visible {
 }
 
 .form-row label {
-  padding: 0 0;
+  padding: 0 0 0 14px;
   border-right: 0;
   background: transparent;
   color: var(--muted);

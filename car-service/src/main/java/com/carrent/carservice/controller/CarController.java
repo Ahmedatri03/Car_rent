@@ -5,10 +5,20 @@ import com.carrent.carservice.service.CarService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"})
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "http://localhost:5174",
+                "http://127.0.0.1:5173",
+                "http://127.0.0.1:5174"
+        },
+        allowedHeaders = "*",
+        methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS}
+)
 @RequestMapping("/api/cars")
 public class CarController {
     private final CarService carService;
@@ -42,5 +52,27 @@ public class CarController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         return carService.delete(id) ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+    }
+
+    /**
+     * Remet toutes les voitures en disponibilité (non occupées).
+     */
+    @PostMapping("/availability/available")
+    public ResponseEntity<Map<String, Integer>> setAllAvailable() {
+        int updated = carService.setAllAvailability(true);
+        return ResponseEntity.ok(Map.of("updated", updated));
+    }
+
+    /**
+     * Remet une voiture précise en disponibilité (non occupée).
+     */
+    @PostMapping("/{id}/availability/available")
+    public ResponseEntity<Map<String, Integer>> setOneAvailable(@PathVariable Long id) {
+        Car car = carService.findById(id);
+        if (car == null) {
+            return ResponseEntity.notFound().build();
+        }
+        carService.setAvailability(id, true);
+        return ResponseEntity.ok(Map.of("updated", 1));
     }
 }

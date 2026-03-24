@@ -50,8 +50,8 @@ function LoginPage() {
 
   return (
     <div className="container">
-      <h1>Car Rent Demo</h1>
-      <p>Admin : admin/admin. Client : enregistre-toi puis connecte-toi (simulation, sans JWT).</p>
+      <h1>Car Rent</h1>
+      <p>Admin : admin/admin. Client : enregistre-toi puis connecte-toi.</p>
       <form onSubmit={onSubmit} className="card">
         <input placeholder="username" value={username} onChange={(e) => setUsername(e.target.value)} />
         <input type="password" placeholder="password" value={password} onChange={(e) => setPassword(e.target.value)} />

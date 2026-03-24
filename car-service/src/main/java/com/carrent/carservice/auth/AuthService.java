@@ -2,13 +2,13 @@ package com.carrent.carservice.auth;
 
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 @Service
 public class AuthService {
-    // Demo-only in-memory auth store (no persistence).
-    private final Map<String, String> users = new ConcurrentHashMap<>();
+    private final AuthUserRepository authUserRepository;
+
+    public AuthService(AuthUserRepository authUserRepository) {
+        this.authUserRepository = authUserRepository;
+    }
 
     public Long register(String username, String password) {
         String u = normalize(username);
@@ -18,10 +18,10 @@ public class AuthService {
         if (password == null || password.isBlank()) {
             throw new IllegalArgumentException("Mot de passe obligatoire");
         }
-        if (users.containsKey(u)) {
+        if (authUserRepository.existsById(u)) {
             throw new IllegalArgumentException("Compte existe deja");
         }
-        users.put(u, password);
+        authUserRepository.save(new AuthUser(u, password));
         return UserIdGenerator.fromUsername(u);
     }
 
@@ -34,11 +34,11 @@ public class AuthService {
             throw new IllegalArgumentException("Mot de passe obligatoire");
         }
 
-        String savedPassword = users.get(u);
-        if (savedPassword == null) {
+        AuthUser user = authUserRepository.findById(u).orElse(null);
+        if (user == null) {
             throw new IllegalArgumentException("Compte introuvable");
         }
-        if (!savedPassword.equals(password)) {
+        if (!user.getPassword().equals(password)) {
             throw new IllegalArgumentException("Mot de passe incorrect");
         }
         return UserIdGenerator.fromUsername(u);

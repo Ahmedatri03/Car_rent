@@ -7,23 +7,20 @@ import com.carrent.carservice.dto.CreditCheckResponse;
 import com.carrent.carservice.model.Booking;
 import com.carrent.carservice.model.BookingStatus;
 import com.carrent.carservice.model.Car;
+import com.carrent.carservice.repository.BookingRepository;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class BookingService {
-    private final Map<Long, Booking> bookings = new ConcurrentHashMap<>();
-    private final AtomicLong sequence = new AtomicLong(1);
+    private final BookingRepository bookingRepository;
     private final CarService carService;
     private final RabbitTemplate rabbitTemplate;
 
-    public BookingService(CarService carService, RabbitTemplate rabbitTemplate) {
+    public BookingService(BookingRepository bookingRepository, CarService carService, RabbitTemplate rabbitTemplate) {
+        this.bookingRepository = bookingRepository;
         this.carService = carService;
         this.rabbitTemplate = rabbitTemplate;
     }
@@ -34,39 +31,42 @@ public class BookingService {
             return null;
         }
 
-        long id = sequence.getAndIncrement();
-        double total = car.getPricePerDay() * request.getDays();
+        Double unitPrice = car.getPricePerDay() != null ? car.getPricePerDay() : car.getRentalPricePerDay();
+        if (unitPrice == null || unitPrice <= 0.0d) {
+            return null;
+        }
+        double total = unitPrice * request.getDays();
 
         Booking booking = new Booking(
-                id,
+                null,
                 request.getUserId(),
                 request.getCarId(),
                 request.getDays(),
                 total,
                 BookingStatus.PENDING
         );
-        bookings.put(id, booking);
+        Booking saved = bookingRepository.save(booking);
 
-        CreditCheckRequest checkRequest = new CreditCheckRequest(id, request.getUserId(), total);
+        CreditCheckRequest checkRequest = new CreditCheckRequest(saved.getId(), request.getUserId(), total);
         rabbitTemplate.convertAndSend(
                 RabbitConfig.EXCHANGE,
                 RabbitConfig.CREDIT_CHECK_REQUEST_KEY,
                 checkRequest
         );
 
-        return booking;
+        return saved;
     }
 
     public List<Booking> findAll() {
-        return new ArrayList<>(bookings.values());
+        return bookingRepository.findAll();
     }
 
     public Booking findById(Long id) {
-        return bookings.get(id);
+        return bookingRepository.findById(id).orElse(null);
     }
 
     public void handleCreditResponse(CreditCheckResponse response) {
-        Booking booking = bookings.get(response.getBookingId());
+        Booking booking = findById(response.getBookingId());
         if (booking == null) {
             return;
         }
@@ -77,5 +77,6 @@ public class BookingService {
         } else {
             booking.setStatus(BookingStatus.REFUSED);
         }
+        bookingRepository.save(booking);
     }
 }

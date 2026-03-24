@@ -4,6 +4,17 @@ server:
 spring:
   application:
     name: bank-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/carrent_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
   rabbitmq:
     host: localhost
     port: 5672

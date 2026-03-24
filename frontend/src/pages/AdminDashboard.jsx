@@ -6,6 +6,9 @@ function AdminDashboard() {
   const navigate = useNavigate();
   const [cars, setCars] = useState([]);
   const [activeSection, setActiveSection] = useState("create");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetInfo, setResetInfo] = useState("");
+  const [resetOneLoadingId, setResetOneLoadingId] = useState(null);
   const [form, setForm] = useState({
     type: "SEDAN",
     rentalPricePerDay: 50,
@@ -58,6 +61,36 @@ function AdminDashboard() {
     navigate("/");
   };
 
+  const resetAllCarsAvailable = async () => {
+    setResetInfo("");
+    setResetLoading(true);
+    try {
+      const res = await carApi.post("/cars/availability/available");
+      const updated = res?.data?.updated;
+      setResetInfo(typeof updated === "number" ? `OK: ${updated} voiture(s) mises disponibles.` : "OK: disponibilités mises à jour.");
+      await loadCars();
+    } catch (err) {
+      const msg = err?.response?.data || err?.message || "Erreur lors de la mise à jour.";
+      setResetInfo(typeof msg === "string" ? msg : "Erreur lors de la mise à jour.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const resetOneCarAvailable = async (carId) => {
+    setResetInfo("");
+    setResetOneLoadingId(carId);
+    try {
+      await carApi.post(`/cars/${carId}/availability/available`);
+      await loadCars();
+    } catch (err) {
+      const msg = err?.response?.data || err?.message || "Erreur lors de la mise à jour.";
+      setResetInfo(typeof msg === "string" ? msg : "Erreur lors de la mise à jour.");
+    } finally {
+      setResetOneLoadingId(null);
+    }
+  };
+
   return (
     <div className="app-shell">
       <aside className="app-sidebar">
@@ -96,7 +129,7 @@ function AdminDashboard() {
         <div className="content-stack">
           {activeSection === "create" ? (
             <form onSubmit={createCar} className="card admin-car-form">
-              <h3 style={{ marginBottom: 4 }}>Créer une voiture</h3>
+              <h3 style={{ marginBottom: 10, paddingLeft: 14 }}>Créer une voiture</h3>
 
               <div className="form-row">
                 <label htmlFor="type">Type:</label>
@@ -195,8 +228,8 @@ function AdminDashboard() {
 
           {activeSection === "profile" ? (
             <div className="card">
-              <h3>Mon profil</h3>
-              <p>Admin demo account.</p>
+              <h3 style={{ marginBottom: 10 }}>Mon profil</h3>
+              <p>Compte admin.</p>
               <p>Username: admin</p>
               <p>Role: ADMIN</p>
             </div>
@@ -204,7 +237,17 @@ function AdminDashboard() {
 
           {activeSection === "list" ? (
             <div className="card">
-              <h3>Voitures enregistrees</h3>
+              <h3 style={{ marginBottom: 10 }}>Voitures enregistrees</h3>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ alignSelf: "flex-start", marginBottom: 10, opacity: resetLoading ? 0.7 : 1 }}
+                onClick={resetAllCarsAvailable}
+                disabled={resetLoading}
+              >
+                {resetLoading ? "Mise à jour..." : "Rendre toutes disponibles"}
+              </button>
+              {resetInfo ? <p style={{ margin: "0 0 8px", fontWeight: 800, color: resetLoading ? "#92400e" : "#15803d" }}>{resetInfo}</p> : null}
               <table className="data-table">
                 <thead>
                   <tr>
@@ -225,7 +268,18 @@ function AdminDashboard() {
                       <td>{car.model}</td>
                       <td>{car.rentalPricePerDay ?? car.pricePerDay}</td>
                       <td>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
                         <span className={`pill ${car.available ? "pill-available" : "pill-unavailable"}`}>{car.available ? "Disponible" : "Occupee"}</span>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ alignSelf: "flex-start", opacity: car.available ? 0.7 : 1 }}
+                          disabled={car.available || resetOneLoadingId === car.id}
+                          onClick={() => resetOneCarAvailable(car.id)}
+                        >
+                          {resetOneLoadingId === car.id ? "Mise à jour..." : "Rendre dispo"}
+                        </button>
+                      </div>
                       </td>
                     </tr>
                   ))}
